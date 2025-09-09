@@ -11,7 +11,7 @@ image_source = st.sidebar.radio(
     ("Fluorescence (IF)", "Brightfield (BF)", "Upload Image"),
     help="Choose between pre-loaded images or upload your own."
 )
-filter_size = st.sidebar.slider("Filter Size", 3, 9, 3, step=2, help="Adjust the size of the filter kernel.")
+filter_size = int(st.sidebar.slider("Filter Size", 3, 9, 3, step=2, help="Adjust the size of the filter kernel."))
 # Ensure filter_size is always odd
 filter_size = filter_size if filter_size % 2 != 0 else filter_size + 1
 sobel_ksize = st.sidebar.slider("Sobel Kernel Size", 3, 11, 3, step=2, help="Adjust the size of the Sobel kernel.")
