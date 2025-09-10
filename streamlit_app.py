@@ -1,3 +1,6 @@
+import os
+os.environ['CV_MATMUL_CPU_ONLY'] = '1'
+
 import streamlit as st
 import numpy as np
 import cv2
