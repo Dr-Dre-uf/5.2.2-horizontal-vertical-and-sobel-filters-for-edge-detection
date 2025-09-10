@@ -1,7 +1,4 @@
 streamlit
 numpy
-opencv-python
-scikit-image
 Pillow
-matplotlib
-libgl1-mesa-glx
+opencv-python-headless
