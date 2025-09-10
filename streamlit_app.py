@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
 from PIL import Image
 
 # Sidebar
@@ -43,15 +42,15 @@ filter_size = st.sidebar.slider(
 # Define custom horizontal edge filter
 kernel_size = filter_size
 horiz_filter = np.zeros((kernel_size, kernel_size), dtype=np.float32)
-horiz_filter[kernel_size // 2, :] = np.ones(kernel_size)  # Dynamic coefficient creation
+horiz_filter[kernel_size // 2, :] = np.ones(kernel_size)
 horiz_filter[kernel_size // 2 - 1, :] = 0
-horiz_filter[kernel_size // 2 + 1, :] = -np.ones(kernel_size)  # Dynamic coefficient creation
+horiz_filter[kernel_size // 2 + 1, :] = -np.ones(kernel_size)
 
 # Define custom vertical edge filter
 vert_filter = np.zeros((kernel_size, kernel_size), dtype=np.float32)
-vert_filter[:, kernel_size // 2] = np.ones(kernel_size)  # Dynamic coefficient creation
+vert_filter[:, kernel_size // 2] = np.ones(kernel_size)
 vert_filter[:, kernel_size // 2 - 1] = 0
-vert_filter[:, kernel_size // 2 + 1] = -np.ones(kernel_size) # Dynamic coefficient creation
+vert_filter[:, kernel_size // 2 + 1] = -np.ones(kernel_size)
 
 # Apply filters
 if filter_type == "Horizontal":
@@ -66,11 +65,14 @@ elif filter_type == "Sobel":
 # Normalize to 0-255 and convert to uint8
 min_val = np.min(filtered_image)
 max_val = np.max(filtered_image)
-filtered_image = ((filtered_image - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+
+if max_val - min_val > 0:  # Avoid division by zero
+    normalized_image = ((filtered_image - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+else:
+    normalized_image = filtered_image.astype(np.uint8)  #If all values are the same, just cast
 
 # Display results
 st.subheader("Original Image")
 st.image(img, caption=f"Original {image_source}")
-
 st.subheader("Filtered Image")
-st.image(filtered_image, caption=f"{filter_type} Filtered {image_source} (Size: {filter_size})")
+st.image(normalized_image, caption=f"{filter_type} Filtered {image_source} (Size: {filter_size})")
