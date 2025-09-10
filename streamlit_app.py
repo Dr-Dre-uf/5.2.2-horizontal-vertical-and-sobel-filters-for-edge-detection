@@ -1,5 +1,6 @@
 import os
 os.environ['CV_MATMUL_CPU_ONLY'] = '1'
+os.environ['OPENCV_OPENGL_NO_LOAD'] = '1'
 
 import streamlit as st
 import numpy as np
