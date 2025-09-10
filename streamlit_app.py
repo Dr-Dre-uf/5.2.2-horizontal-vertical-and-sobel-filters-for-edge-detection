@@ -63,8 +63,10 @@ elif filter_type == "Sobel":
     sobely = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=filter_size)
     filtered_image = np.uint8(np.absolute(sobelx + sobely))
 
-# Convert to uint8 before displaying
-filtered_image = np.uint8(filtered_image)
+# Normalize to 0-255 and convert to uint8
+min_val = np.min(filtered_image)
+max_val = np.max(filtered_image)
+filtered_image = ((filtered_image - min_val) / (max_val - min_val) * 255).astype(np.uint8)
 
 # Display results
 st.subheader("Original Image")
