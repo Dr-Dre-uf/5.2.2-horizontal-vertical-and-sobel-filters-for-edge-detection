@@ -1,6 +1,5 @@
 streamlit
 numpy
-pillow
 opencv-python
-mesa-utils
-libgl1-mesa-glx
+matplotlib
+pillow
