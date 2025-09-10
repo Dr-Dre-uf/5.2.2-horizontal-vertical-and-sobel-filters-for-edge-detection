@@ -1,106 +1,105 @@
-import os
-os.environ['CV_MATMUL_CPU_ONLY'] = '1'
-os.environ['OPENCV_OPENGL_NO_LOAD'] = '1'
-
 import streamlit as st
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
-from skimage import color
 from PIL import Image
+import os
 
-# --- Image Loading and Selection ---
-image_paths = {
-    "IF Cells": "assets/IFCells.jpg",
-    "Blood Smear": "assets/BloodSmear.png"
-}
+st.set_page_config(page_title="Edge Detection App", layout="wide")
 
-selected_image_name = st.sidebar.selectbox("Select Image", list(image_paths.keys()))
-selected_image_path = image_paths[selected_image_name]
+st.title("Edge Detection with Horizontal, Vertical & Sobel Filters")
 
-uploaded_file = st.sidebar.file_uploader("Or Upload Your Own Image", type=["jpg", "jpeg", "png"])
+# Warning message
+st.warning("⚠️ Do not upload sensitive or personal data. Images are processed locally in this demo app.")
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    image = np.array(image)
-    selected_image = image  # Use the uploaded image
+# Sidebar: image selection or upload
+st.sidebar.header("Image Selection")
+use_uploaded = st.sidebar.checkbox("Upload your own image")
+
+uploaded_file = None
+if use_uploaded:
+    uploaded_file = st.sidebar.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
 else:
-    selected_image = cv2.imread(selected_image_path)
-    if selected_image is None:
-        st.error(f"Could not load image from {selected_image_path}. Check the file path.")
-        st.stop()
+    image_choice = st.sidebar.selectbox(
+        "Select Default Image",
+        ["Fluorescence (IFCells)", "Brightfield (BloodSmear)"],
+        help="Choose a sample image if you don't want to upload your own."
+    )
 
-# --- Sidebar for Parameters ---
-with st.sidebar:
-    st.header("Parameters")
-    filter_size = st.slider("Filter Size", 3, 9, 3, step=2)  # Adjust filter size
-    sobel_ksize = st.slider("Sobel Kernel Size", 3, 11, 3, step=2)  # Adjust Sobel kernel size
+# Sidebar: filter strength sliders
+st.sidebar.header("Filter Settings")
 
-# --- Functions ---
-def apply_edge_filter(image, filter_kernel):
-    return cv2.filter2D(image, -1, filter_kernel)
+horiz_strength = st.sidebar.slider(
+    "Horizontal Filter Strength", 0.5, 5.0, 1.0, step=0.1,
+    help="Adjusts the strength of the horizontal edge filter."
+)
 
-def apply_sobel_operator(image, ksize):
-    gray_image = color.rgb2gray(image)
-    gray_image = (gray_image * 255).astype(np.uint8)
+vert_strength = st.sidebar.slider(
+    "Vertical Filter Strength", 0.5, 5.0, 1.0, step=0.1,
+    help="Adjusts the strength of the vertical edge filter."
+)
 
-    # Sobel Operator
-    sobelx = cv2.Sobel(gray_image, cv2.CV_64F, 1, 0, ksize=ksize)
-    sobely = cv2.Sobel(gray_image, cv2.CV_64F, 0, 1, ksize=ksize)
+sobel_strength = st.sidebar.slider(
+    "Sobel Filter Strength", 0.5, 5.0, 1.0, step=0.1,
+    help="Adjusts the strength of the Sobel edge detector."
+)
 
-    # Calculate magnitude
-    edge_magnitude = np.sqrt(sobelx**2 + sobely**2)
-    return gray_image, edge_magnitude
+# Define base filters
+base_horiz_filter = np.array([[1, 1, 1],
+                              [0, 0, 0],
+                              [-1, -1, -1]], dtype=np.float32)
 
-# --- Horizontal Edge Filtering ---
-st.header("Horizontal Edge Filtering")
+base_vert_filter = np.array([[1, 0, -1],
+                             [1, 0, -1],
+                             [1, 0, -1]], dtype=np.float32)
 
-horiz_filter = np.array([[1, 1, 1],
-                          [0, 0, 0],
-                          [-1, -1, -1]], dtype=np.float32)
+# Scale filters
+horiz_filter = horiz_strength * base_horiz_filter
+vert_filter = vert_strength * base_vert_filter
 
-IF_horiz = apply_edge_filter(selected_image, horiz_filter)
+# Image paths for defaults
+bf_path = "assets/BloodSmear.png"
+if_path = "assets/IFCells.jpg"
 
-fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-axes[0].imshow(selected_image)
-axes[0].set_title("Original Image")
-axes[0].axis("off")
-axes[1].imshow(IF_horiz, cmap='gray')
-axes[1].set_title("Horizontal Edges")
-axes[1].axis("off")
-plt.tight_layout()
-st.pyplot(fig)
+# Load image
+if use_uploaded and uploaded_file is not None:
+    img = np.array(Image.open(uploaded_file).convert("RGB"))
+elif not use_uploaded:
+    if image_choice == "Fluorescence (IFCells)":
+        img = np.array(Image.open(if_path).convert("RGB"))
+    else:
+        img = np.array(Image.open(bf_path).convert("RGB"))
+else:
+    img = None
 
-# --- Vertical Edge Filtering ---
-st.header("Vertical Edge Filtering")
+if img is not None:
+    # Function to apply filter channel-wise
+    def apply_filter_rgb(img, kernel):
+        channels = cv2.split(img)
+        filtered_channels = [cv2.filter2D(c, -1, kernel) for c in channels]
+        return cv2.merge(filtered_channels)
 
-vert_filter = np.array([[1, 0, -1],
-                         [1, 0, -1],
-                         [1, 0, -1]], dtype=np.float32)
+    # Apply custom filters
+    img_horiz = apply_filter_rgb(img, horiz_filter)
+    img_vert = apply_filter_rgb(img, vert_filter)
 
-IF_vert = apply_edge_filter(selected_image, vert_filter)
+    # Edge magnitude (custom filters)
+    E_custom = np.sqrt(img_horiz.astype(np.float32) ** 2 + img_vert.astype(np.float32) ** 2)
+    E_custom = cv2.normalize(E_custom, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-axes[0].imshow(selected_image)
-axes[0].set_title("Original Image")
-axes[0].axis("off")
-axes[1].imshow(IF_vert, cmap='gray')
-axes[1].set_title("Vertical Edges")
-axes[1].axis("off")
-plt.tight_layout()
-st.pyplot(fig)
+    # Sobel edges
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    sobel = np.sqrt(sobelx ** 2 + sobely ** 2)
+    sobel = cv2.normalize(sobel, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    sobel = cv2.convertScaleAbs(sobel * sobel_strength)
 
-# --- Sobel Filtering ---
-st.header("Sobel Filtering")
-
-I_IF, E_IF = apply_sobel_operator(selected_image, sobel_ksize)
-
-fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-axes[0].imshow(I_IF, cmap='gray')
-axes[0].set_title('Grayscale Image')
-axes[0].axis('off')
-axes[1].imshow(E_IF, cmap='gray')
-axes[1].set_title('Edge Magnitude')
-axes[1].axis('off')
-plt.tight_layout()
-st.pyplot(fig)
+    # Display results
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.image(img, caption="Original", use_container_width=True)
+    col2.image(img_horiz, caption="Horizontal Edges", use_container_width=True)
+    col3.image(img_vert, caption="Vertical Edges", use_container_width=True)
+    col4.image(E_custom, caption="Edge Magnitude", use_container_width=True)
+    col5.image(sobel, caption="Sobel Edges", use_container_width=True)
+else:
+    st.info("Please select or upload an image to begin.")
